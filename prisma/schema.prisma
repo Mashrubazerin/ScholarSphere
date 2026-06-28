@@ -1,0 +1,324 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ============================================================
+// ENUMS
+// ============================================================
+
+enum Role {
+  STUDENT
+  ADMIN
+}
+
+enum DegreeLevel {
+  BACHELORS
+  MASTERS
+  PHD
+}
+
+enum FundingType {
+  FULLY_FUNDED
+  PARTIAL_FUNDING
+  TUITION_WAIVER
+}
+
+enum ApplicationStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  ACCEPTED
+  REJECTED
+  WITHDRAWN
+}
+
+enum CurrentScholarshipStatus {
+  OPEN
+  CLOSED
+  UPCOMING
+}
+
+// ============================================================
+// MODELS
+// ============================================================
+
+/// A country that offers scholarships, hosts universities, and/or is a
+/// user's nationality.
+model Country {
+  id   String @id @default(cuid())
+  name String @unique
+  /// ISO 3166-1 alpha-2 code, e.g. "JP", "DE". Also used to derive the flag
+  /// emoji at read time (regional indicator symbols), so there's no separate
+  /// stored `flag` column to drift out of sync with this.
+  code String @unique
+
+  /// Primary language(s) spoken, e.g. "Japanese" or "English, French".
+  language   String
+  /// Human-readable estimated cost of living for international students.
+  livingCost String
+  /// Student visa requirements and process overview.
+  visaInfo   String
+
+  universities University[]
+  scholarships Scholarship[]
+  /// Users whose nationality is this country (for eligibility matching).
+  nationals    User[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("countries")
+}
+
+/// An institution that hosts one or more scholarships.
+model University {
+  id      String  @id @default(cuid())
+  name    String
+  website String?
+  /// Global ranking, lower is better (1 = best). Null if unranked/unknown.
+  ranking Int?
+
+  countryId String
+  country   Country @relation(fields: [countryId], references: [id], onDelete: Restrict)
+
+  scholarships Scholarship[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Same university name can exist in two different countries, but not twice in one.
+  @@unique([name, countryId])
+  @@index([countryId])
+  @@index([ranking])
+  @@map("universities")
+}
+
+/// A single scholarship listing.
+model Scholarship {
+  id          String @id @default(cuid())
+  name        String
+  description String
+
+  countryId String
+  country   Country @relation(fields: [countryId], references: [id], onDelete: Restrict)
+
+  universityId String
+  university   University @relation(fields: [universityId], references: [id], onDelete: Restrict)
+
+  fundingType   FundingType
+  /// Free text — amounts vary in format ("$35,000/year", "€1,200/month + tuition").
+  fundingAmount String
+
+  degreeLevel  DegreeLevel
+  fieldOfStudy String
+
+  /// Minimum CGPA required, on a 4.0 scale.
+  cgpaRequirement  Float
+  /// Minimum IELTS score required, if any.
+  ieltsRequirement Float?
+
+  /// e.g. "Open to all nationalities", "Developing countries only". Null = no restriction.
+  nationalityRestriction String?
+
+  applicationDeadline DateTime
+  applicationLink     String
+  /// Detailed eligibility criteria, distinct from the general `description`.
+  eligibility         String
+
+  savedBy      SavedScholarship[]
+  applications Application[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([countryId])
+  @@index([universityId])
+  @@index([degreeLevel])
+  @@index([fieldOfStudy])
+  @@index([applicationDeadline])
+  @@map("scholarships")
+}
+
+/// A hand-curated, currently-open scholarship for the homepage's "Current
+/// Available Scholarships" section. Deliberately separate from `Scholarship`
+/// above — that model is normalized for the recommendation engine (single
+/// country/university FK, single degree level, numeric CGPA/IELTS
+/// thresholds). This one favors flexible array fields and free-text
+/// funding/degree info, matching how real scholarship listings are actually
+/// published (multiple degree levels, multiple benefits, no single GPA cutoff).
+model CurrentScholarship {
+  id    String @id @default(cuid())
+  title String @unique
+
+  hostCountry     String
+  /// ISO 3166-1 alpha-2, e.g. "DE" — used to derive the flag emoji.
+  hostCountryCode String
+
+  /// Free text, not an FK — unlike `University` above, these aren't backed by
+  /// a Country/ranking record and several entries span multiple institutions.
+  university String?
+
+  degreeLevels      String[]
+  category          String?
+  eligibleCountries String[]
+
+  /// Free text rather than the `FundingType` enum — real listings phrase this
+  /// in ways that don't reduce cleanly to 3 buckets.
+  fundingType   String
+  fundingAmount String?
+
+  benefits String[]
+
+  deadline        DateTime?
+  applicationLink String
+  officialWebsite String?
+  description     String?
+  fieldOfStudy    String?
+
+  /// Path under /public, e.g. "/scholarships/mcgill.png" — a designed promo
+  /// graphic for the listing, not a logo. Optional since not every entry has one.
+  imageUrl String?
+
+  status CurrentScholarshipStatus @default(OPEN)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([hostCountry])
+  @@map("current_scholarships")
+}
+
+/// A platform user — a student looking for scholarships, or an admin.
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  passwordHash  String?
+  name          String
+  image         String?
+  role          Role      @default(STUDENT)
+  /// Required by the Auth.js Prisma adapter's AdapterUser type, even though
+  /// it's only ever populated for email/OAuth-verified providers — null for
+  /// credentials-based accounts.
+  emailVerified DateTime?
+
+  /// Profile fields used for scholarship matching.
+  cgpa         Float?
+  ieltsScore   Float?
+  fieldOfStudy String?
+  degreeLevel  DegreeLevel?
+
+  nationalityId String?
+  nationality   Country? @relation(fields: [nationalityId], references: [id], onDelete: SetNull)
+
+  savedScholarships SavedScholarship[]
+  applications      Application[]
+  accounts          Account[]
+  sessions          Session[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([nationalityId])
+  @@map("users")
+}
+
+/// Auth.js Prisma adapter model — links OAuth provider accounts to a User.
+/// Unused for now (only the Credentials provider is configured) but required
+/// by the adapter's schema contract, and ready for adding OAuth providers later.
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+/// Auth.js Prisma adapter model for database-strategy sessions. Not actively
+/// used while session strategy is "jwt" (see auth.ts for why), but required
+/// by the adapter's schema contract.
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+/// Auth.js Prisma adapter model for email-verification / passwordless flows. Unused for now.
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+/// Join model: a scholarship a user has bookmarked for later.
+model SavedScholarship {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  scholarshipId String
+  scholarship   Scholarship @relation(fields: [scholarshipId], references: [id], onDelete: Cascade)
+
+  savedAt DateTime @default(now())
+
+  // A user can only save the same scholarship once.
+  @@unique([userId, scholarshipId])
+  @@index([scholarshipId])
+  @@map("saved_scholarships")
+}
+
+/// Tracks a user's application progress for a specific scholarship.
+model Application {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  scholarshipId String
+  scholarship   Scholarship @relation(fields: [scholarshipId], references: [id], onDelete: Cascade)
+
+  status      ApplicationStatus @default(DRAFT)
+  submittedAt DateTime?
+  /// Personal notes the user keeps while applying.
+  notes       String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // One application record per user per scholarship.
+  @@unique([userId, scholarshipId])
+  @@index([scholarshipId])
+  @@index([status])
+  @@map("applications")
+}

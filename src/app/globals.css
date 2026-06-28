@@ -1,0 +1,377 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --background: #020617;
+  --background-secondary: #0f172a;
+  --glass-surface: #0b1120;
+  --foreground: #ffffff;
+  --muted: #94a3b8;
+
+  --accent-violet: #7c3aed;
+  --accent-cyan: #06b6d4;
+  --accent-blue: #3b82f6;
+  --accent-success: #10b981;
+  --accent-warning: #f59e0b;
+  --accent-error: #ef4444;
+
+  --hero-gradient: linear-gradient(135deg, #7c3aed 0%, #06b6d4 100%);
+  --card-border-glow: linear-gradient(180deg, #7c3aed33, #06b6d422);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-inter);
+  --font-display: var(--font-outfit);
+  --font-mono: var(--font-jetbrains-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+}
+
+/* shiny-button-1: glow button border animation */
+@keyframes speen {
+  0% {
+    transform: rotate(10deg);
+  }
+  50% {
+    transform: rotate(190deg);
+  }
+  100% {
+    transform: rotate(370deg);
+  }
+}
+@keyframes woah {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(0.75);
+  }
+}
+
+/* moving-dot-card: viewfinder-style animated stat card */
+@keyframes moveDot {
+  0%,
+  100% {
+    top: 10%;
+    right: 10%;
+  }
+  25% {
+    top: 10%;
+    right: calc(100% - 35px);
+  }
+  50% {
+    top: calc(100% - 30px);
+    right: calc(100% - 35px);
+  }
+  75% {
+    top: calc(100% - 30px);
+    right: 10%;
+  }
+}
+
+.dot-card-outer {
+  position: relative;
+  width: 100%;
+  height: 160px;
+}
+
+.dot-card-card {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  border-radius: 12px;
+  overflow: hidden;
+  background: rgba(11, 17, 32, 0.7);
+  backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(124, 58, 237, 0.2);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.dot-card-dot {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 9999px;
+  background: linear-gradient(135deg, #7c3aed, #06b6d4);
+  box-shadow: 0 0 12px 2px rgba(124, 58, 237, 0.8);
+  z-index: 2;
+  animation: moveDot 6s ease-in-out infinite;
+}
+
+.dot-card-ray {
+  position: absolute;
+  width: 60px;
+  height: 60px;
+  border-radius: 9999px;
+  background: radial-gradient(circle, rgba(6, 182, 212, 0.45), transparent 70%);
+  filter: blur(8px);
+  z-index: 1;
+  animation: moveDot 6s ease-in-out infinite;
+}
+
+.dot-card-text {
+  font-family: var(--font-jetbrains-mono);
+  font-size: 2rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, #7c3aed, #06b6d4);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.dot-card-label {
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.dot-card-line {
+  position: absolute;
+  background: rgba(124, 58, 237, 0.5);
+}
+
+.dot-card-line.topl {
+  top: -1px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 28px;
+  height: 2px;
+}
+
+.dot-card-line.bottoml {
+  bottom: -1px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 28px;
+  height: 2px;
+}
+
+.dot-card-line.leftl {
+  left: -1px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 2px;
+  height: 28px;
+}
+
+.dot-card-line.rightl {
+  right: -1px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 2px;
+  height: 28px;
+}
+
+/* nova-orb: tumbling wireframe lattice */
+@keyframes nova-orb-spin {
+  from {
+    transform: rotateY(0deg) rotateX(0deg);
+  }
+  to {
+    transform: rotateY(360deg) rotateX(360deg);
+  }
+}
+
+.nova-orb-spin {
+  animation: nova-orb-spin 32s linear infinite;
+}
+
+.nova-orb-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 1px solid;
+  opacity: 0.55;
+}
+
+/* nova-orb: dot orbiting the core on a 2D ring */
+@keyframes nova-orb-orbit {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.nova-orb-orbit {
+  animation: nova-orb-orbit 9s linear infinite;
+}
+
+/* nova-particle-field: drifting starfield (box-shadow star trick) */
+@keyframes nova-star-drift {
+  from {
+    transform: translateY(0px);
+  }
+  to {
+    transform: translateY(-2000px);
+  }
+}
+
+.nova-stars {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 1px;
+  background: transparent;
+  animation: nova-star-drift linear infinite;
+}
+
+.nova-stars::after {
+  content: "";
+  position: absolute;
+  top: 2000px;
+  left: 0;
+  width: 1px;
+  height: 1px;
+  background: transparent;
+  box-shadow: inherit;
+}
+
+/* site-footer: animated gradient divider along the top edge */
+@keyframes footer-divider-flow {
+  to {
+    background-position: 200% 50%;
+  }
+}
+
+.footer-divider {
+  height: 2px;
+  background: linear-gradient(90deg, #7c3aed, #06b6d4, #7c3aed);
+  background-size: 200% 100%;
+  animation: footer-divider-flow 6s linear infinite;
+}
+
+/* site-footer: slow-drifting aurora blobs */
+@keyframes footer-aurora-drift {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(5%, -4%) scale(1.1);
+  }
+}
+
+.footer-aurora {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(90px);
+  opacity: 0.35;
+  animation: footer-aurora-drift 20s ease-in-out infinite;
+}
+
+/* site-footer: creator card ambient float + glow pulse */
+@keyframes footer-card-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+.footer-card-float {
+  animation: footer-card-float 6s ease-in-out infinite;
+}
+
+@keyframes footer-glow-pulse {
+  0%,
+  100% {
+    opacity: 0.3;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.55;
+    transform: scale(1.08);
+  }
+}
+
+.footer-card-glow {
+  animation: footer-glow-pulse 5s ease-in-out infinite;
+}
+
+/* site-footer: animated gradient text for the creator's name */
+@keyframes footer-gradient-text-flow {
+  to {
+    background-position: 200% 50%;
+  }
+}
+
+.footer-gradient-name {
+  background: linear-gradient(90deg, #7c3aed, #06b6d4, #a78bfa, #7c3aed);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: footer-gradient-text-flow 5s linear infinite;
+}
+
+.footer-quote-glow {
+  text-shadow: 0 0 14px rgba(103, 232, 249, 0.45);
+}
+
+/* site-footer: animated underline on the bottom-bar credit name */
+.footer-name-link {
+  position: relative;
+  color: #fff;
+  font-weight: 500;
+}
+
+.footer-name-link::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: -2px;
+  height: 1px;
+  width: 100%;
+  background: linear-gradient(90deg, #7c3aed, #06b6d4);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.3s ease;
+}
+
+.footer-name-link:hover::after {
+  transform: scaleX(1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .footer-divider,
+  .footer-aurora,
+  .footer-card-float,
+  .footer-card-glow,
+  .footer-gradient-name {
+    animation: none !important;
+  }
+}
+
+/* graduation-cap-cursor: hides the system cursor in favor of the floating
+   SVG glyph, except over text-editable elements where a real caret matters. */
+body.cap-cursor-active,
+body.cap-cursor-active * {
+  cursor: none !important;
+}
+
+body.cap-cursor-active input,
+body.cap-cursor-active textarea,
+body.cap-cursor-active [contenteditable="true"] {
+  cursor: text !important;
+}

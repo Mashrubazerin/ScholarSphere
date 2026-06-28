@@ -1,0 +1,186 @@
+"use client";
+
+import * as React from "react";
+import * as THREE from "three";
+import { useReducedMotion } from "motion/react";
+
+import { cn } from "@/lib/utils";
+
+interface ParticleWaveBackgroundProps {
+  className?: string;
+  /** Grid is density x density particles. */
+  density?: number;
+  speed?: number;
+  amplitude?: number;
+  separation?: number;
+  particleColor?: string;
+}
+
+function createParticleMaterial(color: string): THREE.SpriteMaterial {
+  const canvas = document.createElement("canvas");
+  canvas.width = 32;
+  canvas.height = 32;
+  const ctx = canvas.getContext("2d");
+  if (ctx) {
+    ctx.clearRect(0, 0, 32, 32);
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(16, 16, 12, 0, Math.PI * 2, true);
+    ctx.fill();
+  }
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.needsUpdate = true;
+  return new THREE.SpriteMaterial({ map: texture, transparent: true });
+}
+
+/**
+ * A WebGL plane of sprites rippling in a sine wave, with the camera
+ * parallaxing toward the cursor. Adapted from a standalone demo component:
+ * stripped of its debug control panel (sliders/color pickers/a third-party
+ * promo button — none of that belongs in production), given a transparent
+ * background so it layers over the page's existing dark theme instead of
+ * painting a flat color, and sized to its container instead of the window.
+ */
+export function ParticleWaveBackground({
+  className,
+  density = 36,
+  speed = 0.08,
+  amplitude = 45,
+  separation = 110,
+  particleColor = "#A78BFA",
+}: ParticleWaveBackgroundProps) {
+  const containerRef = React.useRef<HTMLDivElement>(null);
+  const reduceMotion = useReducedMotion();
+
+  React.useEffect(() => {
+    // A field of particles rippling on a permanent loop is exactly the kind
+    // of motion prefers-reduced-motion users are opting out of — skip
+    // mounting the scene at all rather than rendering it motionless.
+    if (reduceMotion) return;
+
+    const container = containerRef.current;
+    if (!container) return;
+
+    let width = container.clientWidth;
+    let height = container.clientHeight;
+
+    const camera = new THREE.PerspectiveCamera(50, width / height, 1, 10000);
+    camera.position.set(0, 800, 1000);
+
+    const scene = new THREE.Scene();
+
+    // Opaque clear color matching the page background, rather than a
+    // transparent canvas — alpha-compositing a transparent WebGL canvas over
+    // page content triggers a fine dithered grid pattern in some
+    // browsers/GPUs; painting the same flat color the page already shows
+    // behind it achieves the same visual result without alpha blending.
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(width, height);
+    renderer.setClearColor(0x020617, 1);
+    container.appendChild(renderer.domElement);
+
+    const material = createParticleMaterial(particleColor);
+    const particles: THREE.Sprite[] = [];
+
+    for (let ix = 0; ix < density; ix++) {
+      for (let iy = 0; iy < density; iy++) {
+        const particle = new THREE.Sprite(material);
+        particle.position.x = ix * separation - (density * separation) / 2;
+        particle.position.z = iy * separation - (density * separation) / 2;
+        particle.position.y = -400;
+        particle.scale.setScalar(10);
+        particles.push(particle);
+        scene.add(particle);
+      }
+    }
+
+    const mouse = { x: 0, y: 0 };
+    let windowHalf = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+    let count = 0;
+    let animationId = 0;
+    let isVisible = true;
+
+    function handleMouseMove(e: MouseEvent) {
+      mouse.x = e.clientX - windowHalf.x;
+      mouse.y = e.clientY - windowHalf.y;
+    }
+
+    // No preventDefault here (unlike the original demo) — this listens on
+    // `document`, so blocking the default would break page scroll on touch.
+    function handleTouchMove(e: TouchEvent) {
+      if (e.touches.length !== 1) return;
+      mouse.x = e.touches[0].clientX - windowHalf.x;
+      mouse.y = e.touches[0].clientY - windowHalf.y;
+    }
+
+    const handleResize = () => {
+      width = container.clientWidth;
+      height = container.clientHeight;
+      windowHalf = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+      camera.aspect = width / height || 1;
+      camera.updateProjectionMatrix();
+      renderer.setSize(width, height);
+    };
+
+    function animate() {
+      animationId = requestAnimationFrame(animate);
+      if (!isVisible) return;
+
+      camera.position.x += (mouse.x - camera.position.x) * 0.05;
+      camera.position.y += (-mouse.y - camera.position.y) * 0.05;
+      camera.lookAt(scene.position);
+
+      let i = 0;
+      for (let ix = 0; ix < density; ix++) {
+        for (let iy = 0; iy < density; iy++) {
+          const particle = particles[i++];
+          if (!particle) continue;
+          particle.position.y = -400 + Math.sin((ix + count) * 0.3) * amplitude + Math.sin((iy + count) * 0.5) * amplitude;
+          // Raw scale ranges [0, 8] but is rarely actually 0 — most particles
+          // sit at some small-but-nonzero value, which renders every single
+          // grid position as a faint dot and makes the underlying 36x36
+          // particle grid visible as a fine grid pattern. Subtracting a
+          // threshold (then clamping) makes low-lying particles fully
+          // invisible instead, so only real wave crests render.
+          const rawScale = (Math.sin((ix + count) * 0.3) + 1) * 2 + (Math.sin((iy + count) * 0.5) + 1) * 2;
+          const scale = Math.max(0, rawScale - 2.5);
+          particle.scale.setScalar(scale * 2);
+        }
+      }
+
+      renderer.render(scene, camera);
+      count += speed;
+    }
+
+    // Heavier than a CSS animation — stop rendering once scrolled offscreen.
+    const observer = new IntersectionObserver(([entry]) => {
+      isVisible = entry.isIntersecting;
+    }, { threshold: 0.05 });
+    observer.observe(container);
+
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("touchmove", handleTouchMove);
+    window.addEventListener("resize", handleResize);
+    animate();
+
+    return () => {
+      cancelAnimationFrame(animationId);
+      observer.disconnect();
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("touchmove", handleTouchMove);
+      window.removeEventListener("resize", handleResize);
+      particles.forEach((particle) => scene.remove(particle));
+      material.map?.dispose();
+      material.dispose();
+      renderer.dispose();
+      if (container.contains(renderer.domElement)) {
+        container.removeChild(renderer.domElement);
+      }
+    };
+  }, [reduceMotion, density, speed, amplitude, separation, particleColor]);
+
+  return <div ref={containerRef} className={cn("absolute inset-0", className)} aria-hidden="true" />;
+}
+
+export default ParticleWaveBackground;
