@@ -2,6 +2,8 @@
 
 import * as React from "react";
 import { ArrowLeft, ArrowRight, Hand, Sparkles } from "lucide-react";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { useLenis } from "lenis/react";
 
 import { CardStack, type CardStackItem } from "@/components/ui/card-stack";
 import { CurrentScholarshipCard } from "@/components/ui/current-scholarship-card";
@@ -47,6 +49,7 @@ export function CurrentScholarshipsSection() {
   const [scholarships, setScholarships] = React.useState<CurrentScholarshipItem[] | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const sizing = useStackSizing();
+  const lenis = useLenis();
 
   React.useEffect(() => {
     let cancelled = false;
@@ -69,6 +72,19 @@ export function CurrentScholarshipsSection() {
     };
   }, []);
 
+  // Reserving min-height above keeps this from being a big jump, but
+  // refresh anyway to keep ScrollTrigger's cached trigger positions (the
+  // ScrollReveal entrances below, and anywhere else on the page) and
+  // Lenis's scroll bounds in sync with the real, final layout.
+  React.useEffect(() => {
+    if (!scholarships) return;
+    const id = requestAnimationFrame(() => {
+      ScrollTrigger.refresh();
+      lenis?.resize();
+    });
+    return () => cancelAnimationFrame(id);
+  }, [scholarships, lenis]);
+
   return (
     <section id="current-scholarships" className="relative overflow-x-hidden py-12 sm:py-16">
       <div className="mx-auto max-w-[1400px] px-6">
@@ -90,11 +106,23 @@ export function CurrentScholarshipsSection() {
 
         <div className="mt-12">
           {error ? (
-            <p className="text-center text-sm text-[#F87171]">{error}</p>
+            <div style={{ minHeight: Math.max(380, sizing.cardHeight + 80) }} className="flex items-center justify-center">
+              <p className="text-center text-sm text-[#F87171]">{error}</p>
+            </div>
           ) : !scholarships ? (
-            <p className="text-center text-sm text-[#94A3B8]">Loading current scholarships…</p>
+            // Reserves the same height the loaded CardStack will occupy —
+            // without this, the page is ~2500px shorter while this fetch is
+            // in flight. A user who scrolls to "the bottom" during that
+            // window sees the footer right there; the instant data
+            // arrives, the page grows underneath them and the footer gets
+            // pushed far below the viewport, reading as if it "disappeared".
+            <div style={{ minHeight: Math.max(380, sizing.cardHeight + 80) }} className="flex items-center justify-center">
+              <p className="text-center text-sm text-[#94A3B8]">Loading current scholarships…</p>
+            </div>
           ) : scholarships.length === 0 ? (
-            <p className="text-center text-sm text-[#94A3B8]">No open scholarships right now — check back soon.</p>
+            <div style={{ minHeight: Math.max(380, sizing.cardHeight + 80) }} className="flex items-center justify-center">
+              <p className="text-center text-sm text-[#94A3B8]">No open scholarships right now — check back soon.</p>
+            </div>
           ) : (
             <CardStack
               items={scholarships}
