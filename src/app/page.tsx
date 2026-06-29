@@ -39,13 +39,6 @@ export default function Home() {
           className="relative overflow-hidden min-h-[90vh] flex items-center"
         >
           <ParticleWaveBackground particleColor="#A78BFA" />
-          <div
-            className="absolute inset-0"
-            style={{
-              background:
-                "radial-gradient(circle at 70% 40%, rgba(124,58,237,0.25), transparent 60%)",
-            }}
-          />
 
           <div className="relative z-10 max-w-7xl mx-auto px-6 py-24 w-full">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-8 items-center">

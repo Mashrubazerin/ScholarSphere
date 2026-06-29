@@ -69,25 +69,30 @@ export function ParticleWaveBackground({
 
     const scene = new THREE.Scene();
 
-    // Opaque clear color matching the page background, rather than a
-    // transparent canvas — alpha-compositing a transparent WebGL canvas over
-    // page content triggers a fine dithered grid pattern in some
-    // browsers/GPUs; painting the same flat color the page already shows
-    // behind it achieves the same visual result without alpha blending.
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    // Transparent canvas — an opaque clear color paints a flat rectangle
+    // over the camera's empty "sky" region (it looks down at the particle
+    // field from above, so the top portion of the frame has no geometry),
+    // which shows up as a visible seam against the page's actual gradient
+    // background behind it.
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setSize(width, height);
-    renderer.setClearColor(0x020617, 1);
+    renderer.setClearAlpha(0);
     container.appendChild(renderer.domElement);
 
     const material = createParticleMaterial(particleColor);
     const particles: THREE.Sprite[] = [];
 
+    // Random jitter on x/z breaks up the otherwise-perfect lattice — a
+    // perfectly regular grid of particles reads as a visible grid pattern
+    // at a distance regardless of individual particle brightness/size.
     for (let ix = 0; ix < density; ix++) {
       for (let iy = 0; iy < density; iy++) {
         const particle = new THREE.Sprite(material);
-        particle.position.x = ix * separation - (density * separation) / 2;
-        particle.position.z = iy * separation - (density * separation) / 2;
+        const jitterX = (Math.random() - 0.5) * separation * 0.7;
+        const jitterZ = (Math.random() - 0.5) * separation * 0.7;
+        particle.position.x = ix * separation - (density * separation) / 2 + jitterX;
+        particle.position.z = iy * separation - (density * separation) / 2 + jitterZ;
         particle.position.y = -400;
         particle.scale.setScalar(10);
         particles.push(particle);
@@ -137,14 +142,7 @@ export function ParticleWaveBackground({
           const particle = particles[i++];
           if (!particle) continue;
           particle.position.y = -400 + Math.sin((ix + count) * 0.3) * amplitude + Math.sin((iy + count) * 0.5) * amplitude;
-          // Raw scale ranges [0, 8] but is rarely actually 0 — most particles
-          // sit at some small-but-nonzero value, which renders every single
-          // grid position as a faint dot and makes the underlying 36x36
-          // particle grid visible as a fine grid pattern. Subtracting a
-          // threshold (then clamping) makes low-lying particles fully
-          // invisible instead, so only real wave crests render.
-          const rawScale = (Math.sin((ix + count) * 0.3) + 1) * 2 + (Math.sin((iy + count) * 0.5) + 1) * 2;
-          const scale = Math.max(0, rawScale - 2.5);
+          const scale = (Math.sin((ix + count) * 0.3) + 1) * 2 + (Math.sin((iy + count) * 0.5) + 1) * 2;
           particle.scale.setScalar(scale * 2);
         }
       }
