@@ -2,8 +2,9 @@ import type { Metadata } from "next";
 import { Inter, Outfit, JetBrains_Mono } from "next/font/google";
 import { SessionProvider } from "next-auth/react";
 import { ParticlesProvider } from "@/components/providers/particles-provider";
+import { SmoothScrollProvider } from "@/components/providers/smooth-scroll-provider";
 import { GraduationCapCursor } from "@/components/ui/graduation-cap-cursor";
-import { NovaParticleField } from "@/components/ui/nova-particle-field";
+import { GlobalPointerVars } from "@/components/ui/global-pointer-vars";
 import "./globals.css";
 
 const inter = Inter({
@@ -39,9 +40,11 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col bg-[#020617] text-white font-sans">
         <SessionProvider>
-          <NovaParticleField className="fixed -z-10" />
+          <GlobalPointerVars />
           <GraduationCapCursor />
-          <ParticlesProvider>{children}</ParticlesProvider>
+          <SmoothScrollProvider>
+            <ParticlesProvider>{children}</ParticlesProvider>
+          </SmoothScrollProvider>
         </SessionProvider>
       </body>
     </html>

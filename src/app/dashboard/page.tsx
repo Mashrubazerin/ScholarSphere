@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 
 import { auth, signOut } from "@/auth";
 import { db } from "@/lib/db";
+import { NovaParticleField } from "@/components/ui/nova-particle-field";
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -14,7 +15,8 @@ export default async function DashboardPage() {
   if (!user) redirect("/login");
 
   return (
-    <main className="min-h-screen px-6 py-24">
+    <main className="relative min-h-screen px-6 py-24">
+      <NovaParticleField className="fixed -z-10" />
       <div className="mx-auto max-w-4xl">
         <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-white/10 bg-[#0B1120]/70 p-6 backdrop-blur-xl shadow-[0_8px_32px_rgba(0,0,0,0.4)]">
           <div>

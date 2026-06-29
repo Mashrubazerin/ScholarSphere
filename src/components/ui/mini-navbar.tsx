@@ -3,12 +3,28 @@
 import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { Globe } from "lucide-react";
+import { useLenis } from "lenis/react";
+
+function useNavScroll() {
+  const lenis = useLenis();
+
+  return (href: string) => {
+    const id = href.replace("#", "");
+    if (lenis) {
+      lenis.scrollTo(`#${id}`, { duration: 1.2 });
+    } else {
+      document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
+    }
+  };
+}
 
 const AnimatedNavLink = ({
   href,
+  onNavigate,
   children,
 }: {
   href: string;
+  onNavigate: (href: string) => void;
   children: React.ReactNode;
 }) => {
   const defaultTextColor = "text-[#94A3B8]";
@@ -18,6 +34,10 @@ const AnimatedNavLink = ({
   return (
     <a
       href={href}
+      onClick={(e) => {
+        e.preventDefault();
+        onNavigate(href);
+      }}
       className={`group relative inline-block overflow-hidden h-5 flex items-center ${textSizeClass}`}
     >
       <div className="flex flex-col transition-transform duration-400 ease-out transform group-hover:-translate-y-1/2">
@@ -32,6 +52,7 @@ export function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const shapeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const navigate = useNavScroll();
 
   const toggleMenu = () => setIsOpen((prev) => !prev);
 
@@ -48,7 +69,14 @@ export function Navbar() {
   }, []);
 
   const logoElement = (
-    <a href="#home" className="flex items-center gap-2">
+    <a
+      href="#home"
+      onClick={(e) => {
+        e.preventDefault();
+        navigate("#home");
+      }}
+      className="flex items-center gap-2"
+    >
       <div className="relative w-7 h-7 flex items-center justify-center">
         <span className="absolute inset-0 rounded-full border border-[#06B6D4]/50" />
         <span className="absolute inset-[-3px] rounded-full border border-[#7C3AED]/30 rotate-45" />
@@ -95,14 +123,14 @@ export function Navbar() {
     <header
       className={`fixed top-0 left-0 right-0 z-50 transition-colors duration-300 ${
         scrolled ? "bg-[#020617]/85" : "bg-[#020617]/60"
-      } backdrop-blur-2xl border-b border-[#7C3AED]/15`}
+      } backdrop-blur-2xl border-b border-[#7C3AED]/25 shadow-[0_1px_24px_rgba(124,58,237,0.18)]`}
     >
       <div className="max-w-7xl mx-auto h-16 px-4 sm:px-6 flex items-center justify-between gap-x-6">
         {logoElement}
 
         <nav className="hidden lg:flex items-center space-x-6 text-sm">
           {navLinksData.map((link) => (
-            <AnimatedNavLink key={link.label} href={link.href}>
+            <AnimatedNavLink key={link.label} href={link.href} onNavigate={navigate}>
               {link.label}
             </AnimatedNavLink>
           ))}
@@ -161,7 +189,11 @@ export function Navbar() {
               key={link.label}
               href={link.href}
               className="text-[#94A3B8] hover:text-white transition-colors w-full text-center"
-              onClick={() => setIsOpen(false)}
+              onClick={(e) => {
+                e.preventDefault();
+                setIsOpen(false);
+                navigate(link.href);
+              }}
             >
               {link.label}
             </a>

@@ -43,7 +43,10 @@ export function GraduationCapCursor() {
       lastX = e.clientX;
     }
 
-    window.addEventListener("mousemove", handleMove);
+    // passive: true — this handler never calls preventDefault, so the
+    // browser doesn't need to block scrolling/other input on this listener
+    // to check whether it might.
+    window.addEventListener("mousemove", handleMove, { passive: true });
     return () => {
       window.removeEventListener("mousemove", handleMove);
       document.body.classList.remove("cap-cursor-active");

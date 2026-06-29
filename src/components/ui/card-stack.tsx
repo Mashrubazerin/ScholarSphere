@@ -201,11 +201,16 @@ export function CardStack<T extends CardStackItem>({
       onMouseLeave={() => setHovering(false)}
     >
       {/* Stage */}
+      {/* data-lenis-prevent: without this, Lenis's global pointer-gesture
+          capture (added for site-wide smooth scroll) intercepts the drag
+          gesture before Framer Motion's drag="x" on the active card ever
+          sees it, silently breaking drag-to-swap. */}
       <div
         className="relative w-full"
         style={{ height: Math.max(380, cardHeight + 80) }}
         tabIndex={0}
         onKeyDown={onKeyDown}
+        data-lenis-prevent
       >
         {/* background wash / spotlight (unique feel) */}
         <div

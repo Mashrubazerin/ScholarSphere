@@ -16,6 +16,21 @@ interface ParticleWaveBackgroundProps {
   particleColor?: string;
 }
 
+// A plain canvas.getContext() probe returns null on failure with no console
+// noise — checking this first lets us skip the wave silently when WebGL is
+// unavailable, instead of letting THREE.WebGLRenderer's own constructor run:
+// it calls console.error() internally before throwing, and Next.js's dev
+// overlay flags that console.error regardless of whether the exception
+// thrown afterward gets caught.
+function isWebGLAvailable(): boolean {
+  try {
+    const canvas = document.createElement("canvas");
+    return !!(canvas.getContext("webgl2") || canvas.getContext("webgl"));
+  } catch {
+    return false;
+  }
+}
+
 function createParticleMaterial(color: string): THREE.SpriteMaterial {
   const canvas = document.createElement("canvas");
   canvas.width = 32;
@@ -60,6 +75,12 @@ export function ParticleWaveBackground({
 
     const container = containerRef.current;
     if (!container) return;
+
+    // The browser's GPU process can run out of WebGL contexts (too many
+    // tabs/demos open, or contexts leaked across a long dev session) — skip
+    // mounting the scene silently rather than letting THREE.WebGLRenderer's
+    // constructor run and log its own console.error about it.
+    if (!isWebGLAvailable()) return;
 
     let width = container.clientWidth;
     let height = container.clientHeight;

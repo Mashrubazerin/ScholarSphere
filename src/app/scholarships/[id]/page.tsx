@@ -4,6 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { AppError } from "@/middleware/withErrorHandling";
+import { NovaParticleField } from "@/components/ui/nova-particle-field";
 import { getCurrentScholarshipById } from "@/services/currentScholarship.service";
 
 interface PageProps {
@@ -28,7 +29,8 @@ export default async function ScholarshipDetailPage({ params }: PageProps) {
   const deadlineLabel = formatDeadline(scholarship.deadline);
 
   return (
-    <main className="min-h-screen py-24 sm:py-32">
+    <main className="relative min-h-screen py-24 sm:py-32">
+      <NovaParticleField className="fixed -z-10" />
       <div className="mx-auto max-w-3xl px-6">
         <Link href="/#current-scholarships" className="text-sm text-[#94A3B8] hover:text-white transition-colors">
           ← Back to Current Scholarships

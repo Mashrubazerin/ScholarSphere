@@ -29,7 +29,7 @@ export async function register(_prevState: string | undefined, formData: FormDat
     await signIn("credentials", {
       email: parsed.data.email,
       password: parsed.data.password,
-      redirectTo: "/dashboard",
+      redirectTo: "/",
     });
   } catch (error) {
     if (error instanceof AuthError) {

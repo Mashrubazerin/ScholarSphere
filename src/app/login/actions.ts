@@ -9,7 +9,7 @@ export async function authenticate(_prevState: string | undefined, formData: For
     await signIn("credentials", {
       email: formData.get("email"),
       password: formData.get("password"),
-      redirectTo: "/dashboard",
+      redirectTo: "/",
     });
   } catch (error) {
     if (error instanceof AuthError) {

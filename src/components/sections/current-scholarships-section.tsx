@@ -5,6 +5,7 @@ import { ArrowLeft, ArrowRight, Hand, Sparkles } from "lucide-react";
 
 import { CardStack, type CardStackItem } from "@/components/ui/card-stack";
 import { CurrentScholarshipCard } from "@/components/ui/current-scholarship-card";
+import { ScrollReveal } from "@/components/ui/scroll-reveal";
 import { ShimmerText } from "@/components/ui/shimmer-text";
 import type { CurrentScholarship } from "@/types/currentScholarship";
 
@@ -18,10 +19,10 @@ interface StackSizing {
   overlap: number;
 }
 
-/** Cards run noticeably taller than wide here — the image banner alone is ~256px (h-64) on desktop — to match the reference's vertical card proportions. */
-const MOBILE_SIZING: StackSizing = { cardWidth: 270, cardHeight: 700, maxVisible: 3, spreadDeg: 18, overlap: 0.64 };
-const TABLET_SIZING: StackSizing = { cardWidth: 330, cardHeight: 700, maxVisible: 5, spreadDeg: 30, overlap: 0.54 };
-const DESKTOP_SIZING: StackSizing = { cardWidth: 380, cardHeight: 720, maxVisible: 5, spreadDeg: 38, overlap: 0.48 };
+/** maxVisible covers all 7 at once so the whole fan is reachable without looping out of view; loop (below) still lets drag/dots cycle past either end. */
+const MOBILE_SIZING: StackSizing = { cardWidth: 200, cardHeight: 420, maxVisible: 5, spreadDeg: 22, overlap: 0.62 };
+const TABLET_SIZING: StackSizing = { cardWidth: 230, cardHeight: 430, maxVisible: 7, spreadDeg: 34, overlap: 0.56 };
+const DESKTOP_SIZING: StackSizing = { cardWidth: 260, cardHeight: 440, maxVisible: 7, spreadDeg: 42, overlap: 0.5 };
 
 /** Fixed-pixel card sizing in CardStack isn't responsive on its own, so the section picks sizing props per breakpoint instead of touching the slider's internals. */
 function useStackSizing(): StackSizing {
@@ -69,9 +70,9 @@ export function CurrentScholarshipsSection() {
   }, []);
 
   return (
-    <section id="current-scholarships" className="relative overflow-x-hidden py-24 sm:py-32">
+    <section id="current-scholarships" className="relative overflow-x-hidden py-12 sm:py-16">
       <div className="mx-auto max-w-[1400px] px-6">
-        <div className="mx-auto max-w-2xl text-center">
+        <ScrollReveal className="mx-auto max-w-2xl text-center">
           <h2 className="font-display flex items-center justify-center gap-3 text-3xl sm:text-4xl font-bold text-white">
             <Sparkles className="h-6 w-6 shrink-0 text-[#7C3AED]" />
             <span>
@@ -85,9 +86,9 @@ export function CurrentScholarshipsSection() {
           <p className="mt-4 text-[#94A3B8]">
             Explore fully funded scholarships currently accepting applications worldwide.
           </p>
-        </div>
+        </ScrollReveal>
 
-        <div className="mt-16">
+        <div className="mt-12">
           {error ? (
             <p className="text-center text-sm text-[#F87171]">{error}</p>
           ) : !scholarships ? (
@@ -110,7 +111,7 @@ export function CurrentScholarshipsSection() {
         </div>
 
         {scholarships && scholarships.length > 0 ? (
-          <div className="mt-6 flex items-center justify-center gap-3 text-sm">
+          <ScrollReveal delay={0.2} y={16} className="mt-6 flex items-center justify-center gap-3 text-sm">
             <ArrowLeft className="h-4 w-4 shrink-0 text-[#94A3B8]" aria-hidden="true" />
             <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[#7C3AED]/30 bg-[#7C3AED]/10">
               <Hand className="h-4 w-4 text-[#C4B5FD]" aria-hidden="true" />
@@ -119,7 +120,7 @@ export function CurrentScholarshipsSection() {
               <span className="font-semibold text-[#C4B5FD]">Swipe</span> to explore more scholarships
             </p>
             <ArrowRight className="h-4 w-4 shrink-0 text-[#94A3B8]" aria-hidden="true" />
-          </div>
+          </ScrollReveal>
         ) : null}
       </div>
     </section>

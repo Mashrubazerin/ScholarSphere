@@ -100,6 +100,16 @@ body {
   box-shadow:
     0 8px 32px rgba(0, 0, 0, 0.4),
     inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+.dot-card-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(124, 58, 237, 0.45);
+  box-shadow:
+    0 16px 40px rgba(0, 0, 0, 0.45),
+    0 0 32px rgba(124, 58, 237, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
 .dot-card-dot {
@@ -374,4 +384,152 @@ body.cap-cursor-active input,
 body.cap-cursor-active textarea,
 body.cap-cursor-active [contenteditable="true"] {
   cursor: text !important;
+}
+
+/* spotlight-card: cursor-tracking spotlight on a card's edge/border.
+   background-attachment: fixed is what makes this work — it positions the
+   radial gradient relative to the viewport instead of each card's own box,
+   so raw clientX/clientY coordinates (see current-scholarship-card.tsx) read
+   as one shared light source, with each nearby card's masked border just
+   revealing the slice that falls within its own ring. */
+[data-glow]::before,
+[data-glow]::after {
+  pointer-events: none;
+  content: "";
+  position: absolute;
+  inset: calc(var(--border-size) * -1);
+  border: var(--border-size) solid transparent;
+  border-radius: calc(var(--radius) * 1px);
+  background-attachment: fixed;
+  background-size: calc(100% + (2 * var(--border-size))) calc(100% + (2 * var(--border-size)));
+  background-repeat: no-repeat;
+  background-position: 50% 50%;
+  mask: linear-gradient(transparent, transparent), linear-gradient(white, white);
+  mask-clip: padding-box, border-box;
+  mask-composite: intersect;
+}
+
+[data-glow]::before {
+  background-image: radial-gradient(
+    calc(var(--spotlight-size) * 0.75) calc(var(--spotlight-size) * 0.75) at calc(var(--x, 0) * 1px) calc(var(--y, 0) * 1px),
+    hsl(var(--hue, 210) calc(var(--saturation, 100) * 1%) calc(var(--lightness, 50) * 1%) / var(--border-spot-opacity, 1)),
+    transparent 100%
+  );
+  filter: brightness(2);
+}
+
+[data-glow]::after {
+  background-image: radial-gradient(
+    calc(var(--spotlight-size) * 0.5) calc(var(--spotlight-size) * 0.5) at calc(var(--x, 0) * 1px) calc(var(--y, 0) * 1px),
+    hsl(0 100% 100% / var(--border-light-opacity, 1)),
+    transparent 100%
+  );
+}
+
+[data-glow] > [data-glow] {
+  position: absolute;
+  inset: 0;
+  will-change: filter;
+  opacity: var(--outer, 1);
+  border-radius: calc(var(--radius) * 1px);
+  border-width: calc(var(--border-size) * 20);
+  filter: blur(calc(var(--border-size) * 10));
+  background: none;
+  pointer-events: none;
+  border: none;
+}
+
+[data-glow] > [data-glow]::before {
+  inset: -10px;
+  border-width: 10px;
+}
+
+/* spotlight-card-gradient-edge: a permanent purple-to-aqua border, layered
+   underneath the cursor-tracking spotlight above. Two background layers on
+   one element — an inner solid fill clipped to padding-box, and the
+   gradient clipped to border-box — so only the border ring (border-box
+   minus padding-box) shows the gradient color. This stays entirely within
+   the element's own box, same as the inset shadow, so it isn't clipped by
+   CardStack's overflow-hidden wrapper either. */
+.spotlight-gradient-edge {
+  background-image:
+    linear-gradient(rgba(11, 17, 32, 0.92), rgba(11, 17, 32, 0.92)),
+    linear-gradient(135deg, #7c3aed, #06b6d4);
+  background-clip: padding-box, border-box;
+}
+
+@keyframes globe-orbit-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* hero-gradient-text: a true two-color animated gradient (not a brightness
+   shimmer like ShimmerText) for the single word the hero wants to stand out
+   on its own line. background-size > 100% + animating background-position
+   makes the gradient continuously drift left-right instead of sitting
+   static. */
+@keyframes hero-gradient-shift {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+.hero-gradient-text {
+  background: linear-gradient(90deg, #3b82f6, #7c3aed, #06b6d4, #3b82f6);
+  background-size: 300% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: hero-gradient-shift 6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-gradient-text {
+    animation: none;
+    background-position: 30% 50%;
+  }
+}
+
+/* aurora-sweep: a slow-drifting layer of soft violet/cyan/blue blobs,
+   layered over NovaParticleField's static blobs + starfield to give the
+   cinematic intro's shared background some motion instead of being a
+   fixed image. inset: -15% so the blur's edges never show a hard boundary
+   as it drifts; the parent needs overflow-hidden since that pushes this
+   element outside its own box. */
+@keyframes aurora-drift {
+  0%,
+  100% {
+    transform: translate(-8%, -4%) rotate(0deg) scale(1);
+    opacity: 0.55;
+  }
+  50% {
+    transform: translate(8%, 4%) rotate(6deg) scale(1.08);
+    opacity: 0.85;
+  }
+}
+
+.aurora-sweep {
+  position: absolute;
+  inset: -15%;
+  background:
+    radial-gradient(ellipse 55% 35% at 25% 25%, rgba(124, 58, 237, 0.28), transparent 60%),
+    radial-gradient(ellipse 50% 30% at 75% 65%, rgba(6, 182, 212, 0.22), transparent 60%),
+    radial-gradient(ellipse 40% 30% at 50% 85%, rgba(59, 130, 246, 0.16), transparent 60%);
+  filter: blur(70px);
+  animation: aurora-drift 22s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aurora-sweep {
+    animation: none;
+  }
 }

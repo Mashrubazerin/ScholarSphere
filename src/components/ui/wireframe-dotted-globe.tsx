@@ -167,10 +167,23 @@ export default function RotatingEarth({
       const currentScale = projection.scale()
       const scaleFactor = currentScale / radius
 
-      // Draw ocean (globe background)
+      // Draw ocean (globe background) — a purple-lit radial gradient instead
+      // of a flat fill, so the globe reads as aqua + purple rather than just
+      // dark navy with cyan accents.
       context.beginPath()
       context.arc(containerWidth / 2, containerHeight / 2, currentScale, 0, 2 * Math.PI)
-      context.fillStyle = "#0B1120"
+      const oceanGradient = context.createRadialGradient(
+        containerWidth / 2,
+        containerHeight / 2,
+        0,
+        containerWidth / 2,
+        containerHeight / 2,
+        currentScale,
+      )
+      oceanGradient.addColorStop(0, "#1E1240")
+      oceanGradient.addColorStop(0.6, "#140B2E")
+      oceanGradient.addColorStop(1, "#0B0A1A")
+      context.fillStyle = oceanGradient
       context.fill()
       context.strokeStyle = "#06B6D4"
       context.globalAlpha = 0.6
@@ -179,13 +192,13 @@ export default function RotatingEarth({
       context.globalAlpha = 1
 
       if (landFeatures) {
-        // Draw graticule
+        // Draw graticule — purple, so the grid and the land outlines below read as two distinct tones instead of one flat cyan.
         const graticule = d3.geoGraticule()
         context.beginPath()
         path(graticule())
-        context.strokeStyle = "#06B6D4"
+        context.strokeStyle = "#A78BFA"
         context.lineWidth = 1 * scaleFactor
-        context.globalAlpha = 0.15
+        context.globalAlpha = 0.18
         context.stroke()
         context.globalAlpha = 1
 
@@ -200,8 +213,8 @@ export default function RotatingEarth({
         context.stroke()
         context.globalAlpha = 1
 
-        // Draw halftone dots
-        allDots.forEach((dot) => {
+        // Draw halftone dots — alternating aqua/purple instead of plain gray, for a richer two-tone land texture.
+        allDots.forEach((dot, i) => {
           const projected = projection([dot.lng, dot.lat])
           if (
             projected &&
@@ -212,7 +225,7 @@ export default function RotatingEarth({
           ) {
             context.beginPath()
             context.arc(projected[0], projected[1], 1.2 * scaleFactor, 0, 2 * Math.PI)
-            context.fillStyle = "rgba(148, 163, 184, 0.55)"
+            context.fillStyle = i % 2 === 0 ? "rgba(6, 182, 212, 0.5)" : "rgba(167, 139, 250, 0.5)"
             context.fill()
           }
         })
@@ -285,11 +298,55 @@ export default function RotatingEarth({
     const rotation: [number, number] = [0, 0]
     let autoRotate = true
     let isDragging = false
-    const rotationSpeed = 0.5
+    const rotationDegPerSecond = 30 // was 0.5deg/frame at an assumed 60fps
+    let resumeTimer: ReturnType<typeof setTimeout> | null = null
 
-    const rotate = () => {
+    // Inertia: velocity (deg/frame, at the 60fps baseline this decay rate was tuned for) carried from the last drag movement, decayed every call until it settles.
+    let velocity = 0
+    const velocityDecayPer60fpsFrame = 0.94
+
+    // Resumes auto-rotate only after a few seconds of no interaction, instead of immediately on release — makes the globe feel like it settles rather than snapping back.
+    const scheduleAutoResume = () => {
+      if (resumeTimer) clearTimeout(resumeTimer)
+      resumeTimer = setTimeout(() => {
+        if (!isDragging && hoveredMarker === null) autoRotate = true
+      }, 2500)
+    }
+
+    // Capped at ~30fps instead of every animation frame — this canvas redraws
+    // the ocean, graticule, land outlines, and every halftone dot (can be
+    // thousands of arcs) on each call, continuously, for as long as the
+    // globe is mounted. At 60fps that's enough sustained main-thread work to
+    // visibly stutter unrelated rAF-driven animations elsewhere on the page
+    // (the custom cursor's spring physics in particular). A slow rotation
+    // and a gentle marker pulse don't need 60fps to read as smooth.
+    //
+    // Rotation speed and inertia decay are both scaled by the real elapsed
+    // time between calls (not a fixed per-call amount) so halving the call
+    // rate doesn't also halve the rotation speed or stretch out how long
+    // inertia takes to settle.
+    const frameInterval = 1000 / 30
+    let lastFrameTime = 0
+    let lastElapsed = 0
+
+    const rotate = (elapsed: number) => {
+      if (elapsed - lastFrameTime < frameInterval) return
+      const deltaMs = lastElapsed === 0 ? frameInterval : elapsed - lastElapsed
+      lastFrameTime = elapsed
+      lastElapsed = elapsed
+
       if (autoRotate) {
-        rotation[0] += rotationSpeed
+        rotation[0] += rotationDegPerSecond * (deltaMs / 1000)
+        projection.rotate(rotation)
+      } else if (Math.abs(velocity) > 0.01) {
+        // velocity decays geometrically every 60fps-frame-equivalent; summing
+        // that decay over the (now larger, since throttled) gap between
+        // calls is a geometric series, not a single multiply.
+        const deltaFrames60 = deltaMs / (1000 / 60)
+        const decayedTotal =
+          (velocity * (1 - Math.pow(velocityDecayPer60fpsFrame, deltaFrames60))) / (1 - velocityDecayPer60fpsFrame)
+        rotation[0] += decayedTotal
+        velocity *= Math.pow(velocityDecayPer60fpsFrame, deltaFrames60)
         projection.rotate(rotation)
       }
       render()
@@ -301,12 +358,14 @@ export default function RotatingEarth({
     const handleMouseDown = (event: MouseEvent) => {
       isDragging = true
       autoRotate = false
+      velocity = 0
+      if (resumeTimer) clearTimeout(resumeTimer)
       const startX = event.clientX
       const startY = event.clientY
+      const sensitivity = 0.5
       const startRotation = [...rotation]
 
       const handleMouseMove = (moveEvent: MouseEvent) => {
-        const sensitivity = 0.5
         const dx = moveEvent.clientX - startX
         const dy = moveEvent.clientY - startY
 
@@ -314,6 +373,7 @@ export default function RotatingEarth({
         rotation[1] = startRotation[1] - dy * sensitivity
         rotation[1] = Math.max(-90, Math.min(90, rotation[1]))
 
+        velocity = moveEvent.movementX * sensitivity
         projection.rotate(rotation)
         render()
       }
@@ -323,9 +383,7 @@ export default function RotatingEarth({
         document.removeEventListener("mouseup", handleMouseUp)
 
         isDragging = false
-        setTimeout(() => {
-          autoRotate = hoveredMarker === null
-        }, 10)
+        scheduleAutoResume()
       }
 
       document.addEventListener("mousemove", handleMouseMove)
@@ -383,6 +441,7 @@ export default function RotatingEarth({
     // Cleanup
     return () => {
       rotationTimer.stop()
+      if (resumeTimer) clearTimeout(resumeTimer)
       canvas.removeEventListener("mousedown", handleMouseDown)
       canvas.removeEventListener("mousemove", handlePointerMove)
       canvas.removeEventListener("mouseleave", handlePointerLeave)
